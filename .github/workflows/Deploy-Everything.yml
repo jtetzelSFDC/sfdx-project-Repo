@@ -1,0 +1,40 @@
+# This is a basic workflow that is manually triggered
+
+name: Deploy Everything Parameterized
+
+on:
+  workflow_dispatch:
+    inputs:
+      SALESFORCE_ORG_URL:
+        description: 'salesforce url of target org'
+        required: true
+      SALESFORCE_ORG_USERNAME:
+        description: 'username of target org'
+        required: true
+      SALESFORCE_CONSUMER_KEY:
+        description: 'consumer key of SFDX app in target org'
+        required: true
+         
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v2
+      
+      - name: Install SFDX
+        run: |
+          wget https://developer.salesforce.com/media/salesforce-cli/sfdx-linux-amd64.tar.xz
+          mkdir sfdx-cli
+          tar xJf sfdx-linux-amd64.tar.xz -C sfdx-cli --strip-components 1
+          ./sfdx-cli/install
+          sfdx --version
+      
+      - name: Authenticate Salesforce org
+        run: |
+          echo "${{ secrets.JWTKEY }}" > server.key
+          sfdx force:auth:jwt:grant --jwtkeyfile server.key --clientid "${{ github.event.inputs.SALESFORCE_CONSUMER_KEY }}" --username "${{ github.event.inputs.SALESFORCE_ORG_USERNAME }}"  --instanceurl "${{ github.event.inputs.SALESFORCE_ORG_URL }}"
+          
+      - name: Deploy package to target org
+        run: |
+          sfdx force:source:deploy -p force-app -u "${{ github.event.inputs.SALESFORCE_ORG_USERNAME }}"
